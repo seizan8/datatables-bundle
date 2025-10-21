@@ -33,7 +33,7 @@ use Twig\Environment as Twig;
  */
 class ColumnTest extends TestCase
 {
-    public function testDateTimeColumn()
+    public function testDateTimeColumn(): void
     {
         $column = new DateTimeColumn();
         $column->initialize('test', 1, [
@@ -43,9 +43,17 @@ class ColumnTest extends TestCase
 
         $this->assertSame('03-04-2015', $column->transform('2015-04-03'));
         $this->assertSame('foo', $column->transform(null));
+
+        $column->initialize('test', 1, [
+            'createFromFormat' => 'foo',
+        ], $this->createDataTable()->setName('foo'));
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('format separator does not match');
+        $column->transform('2015-04-03');
     }
 
-    public function testDateTimeColumnWithCreateFromFormat()
+    public function testDateTimeColumnWithCreateFromFormat(): void
     {
         $column = new DateTimeColumn();
         $column->initialize('test', 1, [
@@ -54,9 +62,12 @@ class ColumnTest extends TestCase
         ], $this->createDataTable()->setName('foo'));
 
         $this->assertSame('19.02.2020 22:30:34', $column->transform('2020-02-19T22:30:34+00:00'));
+
+        $this->expectExceptionMessage('four digit year');
+        $column->transform('foo.bar');
     }
 
-    public function testTextColumn()
+    public function testTextColumn(): void
     {
         $column = new TextColumn();
         $column->initialize('test', 1, [
@@ -69,12 +80,12 @@ class ColumnTest extends TestCase
         $this->assertSame('foo', $column->getDataTable()->getName());
     }
 
-    public function testBoolColumn()
+    public function testBoolColumn(): void
     {
         $column = new BoolColumn();
         $column->initialize('test', 1, [
-             'trueValue' => 'yes',
-             'nullValue' => '<em>null</em>',
+            'trueValue' => 'yes',
+            'nullValue' => '<em>null</em>',
         ], $this->createDataTable());
 
         $this->assertSame('yes', $column->transform(5));
@@ -89,7 +100,7 @@ class ColumnTest extends TestCase
         $this->assertFalse($column->getRightExpr('true'));
     }
 
-    public function testMapColumn()
+    public function testMapColumn(): void
     {
         $column = new MapColumn();
         $column->initialize('test', 1, [
@@ -106,7 +117,7 @@ class ColumnTest extends TestCase
         $this->assertSame('foo', $column->transform(3));
     }
 
-    public function testNumberColumn()
+    public function testNumberColumn(): void
     {
         $column = new NumberColumn();
         $column->initialize('test', 1, [], $this->createDataTable());
@@ -118,9 +129,12 @@ class ColumnTest extends TestCase
         $this->assertFalse($column->isRaw());
         $this->assertTrue($column->isValidForSearch(684));
         $this->assertFalse($column->isValidForSearch('foo.bar'));
+
+        // Forced conversion failure
+        $this->assertSame('0', $column->normalize('foo'));
     }
 
-    public function testColumnWithClosures()
+    public function testColumnWithClosures(): void
     {
         $column = new TextColumn();
         $column->initialize('test', 1, [
@@ -136,7 +150,34 @@ class ColumnTest extends TestCase
         $this->assertSame('BAR', $column->transform(null));
     }
 
-    public function testTwigDependencyDetection()
+    public function testLeftRightExprColumns(): void
+    {
+        $column = new TextColumn();
+        $column->initialize('test', 1, [
+            'leftExpr' => 'foo',
+            'rightExpr' => 'bar',
+        ], $this->createDataTable());
+
+        $this->assertSame('foo', $column->getLeftExpr());
+        $this->assertSame('bar', $column->getRightExpr('fud'));
+
+        $column->initialize('test', 1, [
+            'field' => 'foo',
+            'leftExpr' => fn (string $field) => $field . 'bar',
+            'rightExpr' => fn (string $field) => $field . 'baz',
+        ], $this->createDataTable());
+
+        $this->assertSame('foobar', $column->getLeftExpr());
+        $this->assertSame('fudbaz', $column->getRightExpr('fud'));
+
+        $column->initialize('test', 1, [
+            'rightExpr' => null,
+        ], $this->createDataTable());
+
+        $this->assertSame('foo', $column->getRightExpr('foo'));
+    }
+
+    public function testTwigDependencyDetection(): void
     {
         $this->expectException(MissingDependencyException::class);
         $this->expectExceptionMessage('You must have TwigBundle installed to use');
@@ -144,7 +185,7 @@ class ColumnTest extends TestCase
         new TwigColumn();
     }
 
-    public function testTwigStringColumnExtensionDetection()
+    public function testTwigStringColumnExtensionDetection(): void
     {
         $this->expectException(MissingDependencyException::class);
         $this->expectExceptionMessage('You must have StringLoaderExtension enabled to use');

@@ -39,10 +39,7 @@ class ServicePersonTableType implements DataTableTypeInterface
         $this->router = $router;
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function configure(DataTable $dataTable, array $options)
+    public function configure(DataTable $dataTable, array $options): void
     {
         $dataTable
             ->add('id', TextColumn::class, ['globalSearchable' => false])

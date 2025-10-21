@@ -16,16 +16,7 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 
 class ChoiceFilter extends AbstractFilter
 {
-    /** @var string */
-    protected $placeholder;
-
-    /** @var array */
-    protected $choices = [];
-
-    /**
-     * @return $this
-     */
-    protected function configureOptions(OptionsResolver $resolver)
+    protected function configureOptions(OptionsResolver $resolver): static
     {
         parent::configureOptions($resolver);
 
@@ -42,27 +33,21 @@ class ChoiceFilter extends AbstractFilter
         return $this;
     }
 
-    /**
-     * @return string
-     */
-    public function getPlaceholder()
+    public function getPlaceholder(): ?string
     {
-        return $this->placeholder;
+        return $this->options['placeholder'];
     }
 
     /**
-     * @return mixed
+     * @return string[]
      */
-    public function getChoices()
+    public function getChoices(): array
     {
-        return $this->choices;
+        return $this->options['choices'];
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function isValidValue($value): bool
+    public function isValidValue(mixed $value): bool
     {
-        return array_key_exists($value, $this->choices);
+        return array_key_exists($value, $this->getChoices());
     }
 }

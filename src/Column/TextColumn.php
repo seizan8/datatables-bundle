@@ -21,20 +21,14 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
  */
 class TextColumn extends AbstractColumn
 {
-    /**
-     * {@inheritdoc}
-     */
-    public function normalize($value): string
+    public function normalize(mixed $value): string
     {
         $value = (string) $value;
 
         return $this->isRaw() ? $value : htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE);
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    protected function configureOptions(OptionsResolver $resolver)
+    protected function configureOptions(OptionsResolver $resolver): static
     {
         parent::configureOptions($resolver);
 
@@ -45,7 +39,7 @@ class TextColumn extends AbstractColumn
                 function ($value) {
                     return '%' . $value . '%';
                 }
-        );
+            );
 
         $resolver
             ->setDefault('raw', false)

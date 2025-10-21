@@ -14,27 +14,22 @@ namespace Omines\DataTablesBundle\Twig;
 
 use Omines\DataTablesBundle\DataTable;
 use Symfony\Contracts\Translation\TranslatorInterface;
+use Twig\Extension\AbstractExtension;
+use Twig\TwigFunction;
 
-class DataTablesExtension extends \Twig\Extension\AbstractExtension
+class DataTablesExtension extends AbstractExtension
 {
-    /** @var TranslatorInterface */
-    protected $translator;
-
-    /**
-     * DataTablesExtension constructor.
-     */
-    public function __construct(TranslatorInterface $translator)
+    public function __construct(protected readonly TranslatorInterface $translator)
     {
-        $this->translator = $translator;
     }
 
     /**
-     * {@inheritdoc}
+     * @return TwigFunction[]
      */
-    public function getFunctions()
+    public function getFunctions(): array
     {
         return [
-            new \Twig\TwigFunction('datatable_settings', function (DataTable $dataTable) {
+            new TwigFunction('datatable_settings', function (DataTable $dataTable) {
                 return json_encode([
                     'name' => $dataTable->getName(),
                     'method' => $dataTable->getMethod(),
@@ -48,7 +43,7 @@ class DataTablesExtension extends \Twig\Extension\AbstractExtension
     }
 
     /**
-     * @return array
+     * @return array<string, string|array<string, mixed>>
      */
     private function getLanguageSettings(DataTable $dataTable)
     {
@@ -93,6 +88,9 @@ class DataTablesExtension extends \Twig\Extension\AbstractExtension
         return 'DataTablesBundle';
     }
 
+    /**
+     * @return string|null
+     */
     private function getCDNLanguageFile()
     {
         $file = $this->translator->trans('file', [], 'DataTablesCDN');

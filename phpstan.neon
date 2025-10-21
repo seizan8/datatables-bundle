@@ -1,0 +1,14 @@
+parameters:
+    level: 8
+    paths:
+        - src
+    ignoreErrors:
+        - '#FetchJoinORMOptions contains unresolvable type#'
+
+        # New PHPStan 2 errors
+        - { identifier: missingType.generics }
+    excludePaths:
+        # We're not really testing these 2 barely supported adapters
+        - src/Adapter/Elasticsearch
+        - src/Adapter/MongoDB
+

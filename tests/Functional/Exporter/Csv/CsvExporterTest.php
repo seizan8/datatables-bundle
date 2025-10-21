@@ -23,8 +23,7 @@ use Symfony\Component\HttpFoundation\BinaryFileResponse;
  */
 class CsvExporterTest extends WebTestCase
 {
-    /** @var KernelBrowser */
-    private $client;
+    private KernelBrowser $client;
 
     protected function setUp(): void
     {
@@ -41,10 +40,10 @@ class CsvExporterTest extends WebTestCase
 
         $csvFile = fopen($response->getFile()->getPathname(), 'r');
 
-        self::assertEquals(['dt.columns.firstName', 'dt.columns.lastName'], fgetcsv($csvFile));
+        self::assertEquals(['dt.columns.firstName', 'dt.columns.lastName'], fgetcsv($csvFile, escape: '\\'));
 
         $i = 0;
-        while (false !== ($row = fgetcsv($csvFile))) {
+        while (false !== ($row = fgetcsv($csvFile, escape: '\\'))) {
             self::assertEquals(['FirstName' . $i, 'LastName' . $i], $row);
             ++$i;
         }

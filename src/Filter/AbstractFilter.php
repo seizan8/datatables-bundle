@@ -16,65 +16,48 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
 
 abstract class AbstractFilter
 {
-    /** @var string */
-    protected $template_html;
+    /**
+     * @var array<string, mixed>
+     */
+    protected array $options = [];
 
-    /** @var string */
-    protected $template_js;
-
-    /** @var string */
-    protected $operator;
-
-    public function set(array $options)
+    public function __construct()
     {
-        $resolver = new OptionsResolver();
-        $this->configureOptions($resolver);
-
-        foreach ($resolver->resolve($options) as $key => $value) {
-            $this->$key = $value;
-        }
+        // Initialize the options with the default values set on the OptionsResolver
+        $this->set([]);
     }
 
     /**
-     * @return $this
+     * @param array<string, mixed> $options
      */
-    protected function configureOptions(OptionsResolver $resolver)
+    public function set(array $options): static
     {
-        $resolver->setDefaults([
-            'template_html' => null,
-            'template_js' => null,
-            'operator' => 'CONTAINS',
+        $resolver = new OptionsResolver();
+        $this->configureOptions($resolver);
+        $this->options = $resolver->resolve($options);
+
+        return $this;
+    }
+
+    protected function configureOptions(OptionsResolver $resolver): static
+    {
+        $resolver->setRequired([
+            'template_html',
+            'template_js',
         ]);
 
         return $this;
     }
 
-    /**
-     * @return string
-     */
-    public function getTemplateHtml()
+    public function getTemplateHtml(): string
     {
-        return $this->template_html;
+        return $this->options['template_html'];
     }
 
-    /**
-     * @return string
-     */
-    public function getTemplateJs()
+    public function getTemplateJs(): string
     {
-        return $this->template_js;
+        return $this->options['template_js'];
     }
 
-    /**
-     * @return string
-     */
-    public function getOperator()
-    {
-        return $this->operator;
-    }
-
-    /**
-     * @param mixed $value
-     */
-    abstract public function isValidValue($value): bool;
+    abstract public function isValidValue(mixed $value): bool;
 }

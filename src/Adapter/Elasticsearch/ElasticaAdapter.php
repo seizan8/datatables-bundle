@@ -26,16 +26,13 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
  */
 class ElasticaAdapter extends AbstractAdapter
 {
-    /** @var array */
-    private $clientSettings = [];
+    /** @var array<string, mixed> */
+    private array $clientSettings = [];
 
-    /** @var array */
-    private $indices = [];
+    /** @var array<string, mixed> */
+    private array $indices = [];
 
-    /**
-     * {@inheritdoc}
-     */
-    public function configure(array $options)
+    public function configure(array $options): void
     {
         $resolver = new OptionsResolver();
         $this->configureOptions($resolver);
@@ -45,10 +42,7 @@ class ElasticaAdapter extends AbstractAdapter
         $this->indices = (array) $options['index'];
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    protected function prepareQuery(AdapterQuery $query)
+    protected function prepareQuery(AdapterQuery $query): void
     {
         if (!class_exists(\Elastica\Client::class)) {
             throw new MissingDependencyException('Install ruflin/elastica to use the ElasticaAdapter');
@@ -62,17 +56,11 @@ class ElasticaAdapter extends AbstractAdapter
         }
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    protected function mapPropertyPath(AdapterQuery $query, AbstractColumn $column)
+    protected function mapPropertyPath(AdapterQuery $query, AbstractColumn $column): ?string
     {
         return "[{$column->getField()}]";
     }
 
-    /**
-     * {@inheritdoc}
-     */
     protected function getResults(AdapterQuery $query): \Traversable
     {
         $state = $query->getState();
@@ -80,7 +68,7 @@ class ElasticaAdapter extends AbstractAdapter
         $search->addIndices($this->indices);
 
         $q = $this->buildQuery($state);
-        if ($state->getLength() > 0) {
+        if (null !== $state->getLength()) {
             $q->setFrom($state->getStart())->setSize($state->getLength());
         }
         $this->applyOrdering($q, $state);

@@ -23,38 +23,32 @@ use Symfony\Component\PropertyAccess\PropertyAccessor;
  */
 class ArrayAdapter implements AdapterInterface
 {
-    /** @var array */
-    private $data = [];
+    /** @var mixed[] */
+    private array $data = [];
+    private PropertyAccessor $accessor;
 
-    /** @var PropertyAccessor */
-    private $accessor;
-
-    /**
-     * {@inheritdoc}
-     */
-    public function configure(array $options)
+    public function configure(array $options): void
     {
         $this->data = $options;
         $this->accessor = PropertyAccess::createPropertyAccessor();
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    public function getData(DataTableState $state): ResultSetInterface
+    public function getData(DataTableState $state, bool $raw = false): ResultSetInterface
     {
-        // very basic implementation of sorting
+        // Very basic implementation of sorting
         try {
-            $oc = $state->getOrderBy()[0][0]->getName();
-            $oo = \mb_strtolower($state->getOrderBy()[0][1]);
+            if (!empty($ob = $state->getOrderBy())) {
+                $oc = $ob[0][0]->getName();
+                $oo = \mb_strtolower($state->getOrderBy()[0][1]);
 
-            \usort($this->data, function ($a, $b) use ($oc, $oo) {
-                if ('desc' === $oo) {
-                    return $b[$oc] <=> $a[$oc];
-                }
+                \usort($this->data, function ($a, $b) use ($oc, $oo) {
+                    if ('desc' === $oo) {
+                        return $b[$oc] <=> $a[$oc];
+                    }
 
-                return $a[$oc] <=> $b[$oc];
-            });
+                    return $a[$oc] <=> $b[$oc];
+                });
+            }
         } catch (\Throwable $exception) {
             // ignore exception
         }
@@ -70,23 +64,25 @@ class ArrayAdapter implements AdapterInterface
             }
         }
 
-        $data = iterator_to_array($this->processData($state, $this->data, $map));
+        $data = iterator_to_array($this->processData($state, $this->data, $map, $raw));
 
-        $length = $state->getLength();
+        $length = $state->getLength() ?? 0;
         $page = $length > 0 ? array_slice($data, $state->getStart(), $state->getLength()) : $data;
 
-        return new ArrayResultSet($page, count($this->data), count($data));
+        return new ResultSet(new \ArrayIterator($page), count($this->data), count($data));
     }
 
     /**
-     * @return \Generator
+     * @param mixed[][] $data
+     * @param array<string, string> $map
+     * @return \Generator<mixed[]>
      */
-    protected function processData(DataTableState $state, array $data, array $map)
+    protected function processData(DataTableState $state, array $data, array $map, bool $raw): \Generator
     {
         $transformer = $state->getDataTable()->getTransformer();
         $search = $state->getGlobalSearch() ?: '';
         foreach ($data as $result) {
-            if ($row = $this->processRow($state, $result, $map, $search)) {
+            if ($row = $this->processRow($state, $result, $map, $search, $raw)) {
                 if (null !== $transformer) {
                     $row = call_user_func($transformer, $row, $result);
                 }
@@ -96,15 +92,17 @@ class ArrayAdapter implements AdapterInterface
     }
 
     /**
-     * @return array|null
+     * @param mixed[] $result
+     * @param array<string, string> $map
+     * @return mixed[]|null
      */
-    protected function processRow(DataTableState $state, array $result, array $map, string $search)
+    protected function processRow(DataTableState $state, array $result, array $map, string $search, bool $raw): ?array
     {
         $row = [];
         $match = empty($search);
         foreach ($state->getDataTable()->getColumns() as $column) {
             $value = (!empty($propertyPath = $map[$column->getName()]) && $this->accessor->isReadable($result, $propertyPath)) ? $this->accessor->getValue($result, $propertyPath) : null;
-            $value = $column->transform($value, $result);
+            $value = $column->transform($value, $result, raw: $raw);
             if (!$match) {
                 $match = (false !== mb_stripos($value, $search));
             }

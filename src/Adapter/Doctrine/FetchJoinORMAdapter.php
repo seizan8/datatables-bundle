@@ -26,16 +26,21 @@ use Symfony\Component\OptionsResolver\OptionsResolver;
  * the Doctrine Paginator.
  *
  * @author Jan Böhmer
+ *
+ * @phpstan-import-type ORMOptions from ORMAdapter
+ * @phpstan-type FetchJoinORMOptions ORMOptions&array{simple_total_query: bool}
+ *
+ * The above doesn't work yet in PHPstan, see tracker issue at https://github.com/phpstan/phpstan/issues/4703
  */
 class FetchJoinORMAdapter extends ORMAdapter
 {
-    protected $use_simple_total;
+    protected bool $useSimpleTotal;
 
-    protected function configureOptions(OptionsResolver $resolver)
+    protected function configureOptions(OptionsResolver $resolver): void
     {
         parent::configureOptions($resolver);
 
-        //Enforce object hydration mode (fetch join only works for objects)
+        // Enforce object hydration mode (fetch join only works for objects)
         $resolver->addAllowedValues('hydrate', Query::HYDRATE_OBJECT);
 
         /*
@@ -43,18 +48,20 @@ class FetchJoinORMAdapter extends ORMAdapter
          * You can only use this option, if you did not apply any criteria to your total count.
          */
         $resolver->setDefault('simple_total_query', false);
-
-        return $resolver;
     }
 
+    /**
+     * @param FetchJoinORMOptions|ORMOptions $options
+     */
     protected function afterConfiguration(array $options): void
     {
         parent::afterConfiguration($options);
 
-        $this->use_simple_total = $options['simple_total_query'];
+        /* @phpstan-ignore-next-line See comment at top of class */
+        $this->useSimpleTotal = $options['simple_total_query'];
     }
 
-    protected function prepareQuery(AdapterQuery $query)
+    protected function prepareQuery(AdapterQuery $query): void
     {
         $state = $query->getState();
         $query->set('qb', $builder = $this->createQueryBuilder($state));
@@ -71,8 +78,8 @@ class FetchJoinORMAdapter extends ORMAdapter
         $fromClause = $builder->getDQLPart('from')[0];
         $identifier = "{$fromClause->getAlias()}.{$this->metadata->getSingleIdentifierFieldName()}";
 
-        //Use simpler (faster) total count query if the user wanted so...
-        if ($this->use_simple_total) {
+        // Use simpler (faster) total count query if the user wanted so...
+        if ($this->useSimpleTotal) {
             $query->setTotalRows($this->getSimpleTotalCount($builder));
         } else {
             $query->setTotalRows($this->getCount($builder, $identifier));
@@ -100,7 +107,7 @@ class FetchJoinORMAdapter extends ORMAdapter
                 $builder->addOrderBy($column->getOrderField(), $direction);
             }
         }
-        if ($state->getLength() > 0) {
+        if (null !== $state->getLength()) {
             $builder
                 ->setFirstResult($state->getStart())
                 ->setMaxResults($state->getLength());
@@ -110,7 +117,7 @@ class FetchJoinORMAdapter extends ORMAdapter
         $event = new ORMAdapterQueryEvent($query);
         $state->getDataTable()->getEventDispatcher()->dispatch($event, ORMAdapterEvents::PRE_QUERY);
 
-        //Use Doctrine paginator for result iteration
+        // Use Doctrine paginator for result iteration
         $paginator = new Paginator($query);
 
         foreach ($paginator->getIterator() as $result) {
@@ -119,18 +126,19 @@ class FetchJoinORMAdapter extends ORMAdapter
         }
     }
 
-    public function getCount(QueryBuilder $queryBuilder, $identifier)
+    public function getCount(QueryBuilder $queryBuilder, mixed $identifier): int
     {
         $paginator = new Paginator($queryBuilder);
 
         return $paginator->count();
     }
 
-    protected function getSimpleTotalCount(QueryBuilder $queryBuilder)
+    /**
+     * The paginator count queries can be rather slow, so when query for total count (100ms or longer),
+     * just return the entity count.
+     */
+    protected function getSimpleTotalCount(QueryBuilder $queryBuilder): int
     {
-        /** The paginator count queries can be rather slow, so when query for total count (100ms or longer),
-         * just return the entity count.
-         */
         /** @var Query\Expr\From $from_expr */
         $from_expr = $queryBuilder->getDQLPart('from')[0];
 

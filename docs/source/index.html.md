@@ -279,7 +279,7 @@ interaction based on internal changes in this bundle and/or Doctrine ORM.
 ```php?start_inline=1
 $table->createAdapter(ORMAdapter::class, [
     'entity' => Employee::class,
-    'query' => [
+    'criteria' => [
         function (QueryBuilder $builder) {
             $builder->andWhere($builder->expr()->like('c.name', ':test'))->setParameter('test', '%ny 2%');
         },
@@ -484,7 +484,7 @@ $table->add('buttons', TwigColumn::class, [
 This column type allows you to specify a Twig template used to render the column's cells. The
 template is rendered using the main application context by injecting the main Twig service.
 Additionally the `value` and `row` parameters are being filled by the cell value and the row
-level context respectively.
+level context respectively, and the `column` parameter contains the column class itself.
 
 Option | Type | Description
 ------ | ---- | -----------
@@ -503,7 +503,7 @@ $table->add('link', TwigStringColumn::class, [
 This column type allows you to inline a Twig template as a string used to render the column's cells. The
 template is rendered using the main application context by injecting the main Twig service.
 Additionally, the `value` and `row` parameters are being filled by the cell value and the row
-level context respectively.
+level context respectively, and the `column` parameter contains the column class itself.
 
 This column type requires `StringLoaderExtension` to be [enabled in your Twig environment](https://symfony.com/doc/4.4/reference/dic_tags.html#twig-extension).
 
@@ -546,6 +546,39 @@ Of course you can modify the base type to fit the controller's specific needs be
 argument which is passed to the type class for parametrized instantiation. 
 
 In case you would like to use Symfony's OptionResolver you can simply let your type extend `Omines\DataTablesBundle\AbstractOptionsAwareDataTableType`. This abstract class implements `Omines\DataTablesBundle\OptionsAwareDataTableTypeInterface`. The `DataTableFactory` will resolve all options automatically of any types that implement said `OptionsAwareDataTableTypeInterface`.  
+
+# Events
+
+A few events are available that allow you to hook into the DataTables lifecycle. These are dispatched
+by the `DataTable` instance, and can be listened to by adding event listeners to the table.
+
+## DataTableEvents::PRE_RESPONSE
+
+This event is dispatched just before the response is created, allowing you to modify the table
+one last time while the table state is already known. This could, for instance, be useful for
+adding or removing columns when in the server-side exporting context.
+
+```php?start_inline=1
+$table->addEventListener(DataTableEvents::PRE_RESPONSE, function (DataTablePreResponseEvent $event) {
+    $table = $event->getTable();
+
+    $table
+        ->add('extraColumn', TextColumn::class)
+        ->remove('obsoleteColumn')
+    ;
+});
+```
+
+## DataTableEvents::POST_RESPONSE
+
+This event is dispatched just after the response is created but before it is returned to the client.
+This is useful for logging, or other post-processing tasks.
+
+```php?start_inline=1
+$table->addEventListener(DataTableEvents::POST_RESPONSE, function (DataTablePreResponseEvent $event) use ($logger) {
+    $logger->info('Table rendered', ['table' => $event->getTable()]);
+});
+```
 
 # Javascript
 

@@ -19,8 +19,8 @@ use Omines\DataTablesBundle\Exporter\DataTableExporterInterface;
 use Omines\DataTablesBundle\Filter\AbstractFilter;
 use Symfony\Component\Config\FileLocator;
 use Symfony\Component\DependencyInjection\ContainerBuilder;
+use Symfony\Component\DependencyInjection\Extension\Extension;
 use Symfony\Component\DependencyInjection\Loader;
-use Symfony\Component\HttpKernel\DependencyInjection\Extension;
 
 /**
  * DataTablesExtension.
@@ -29,10 +29,7 @@ use Symfony\Component\HttpKernel\DependencyInjection\Extension;
  */
 class DataTablesExtension extends Extension
 {
-    /**
-     * {@inheritdoc}
-     */
-    public function load(array $configs, ContainerBuilder $container)
+    public function load(array $configs, ContainerBuilder $container): void
     {
         $configuration = new Configuration();
         $config = $this->processConfiguration($configuration, $configs);
@@ -60,10 +57,7 @@ class DataTablesExtension extends Extension
             ->addTag('datatables.exporter');
     }
 
-    /**
-     * @return string
-     */
-    public function getAlias()
+    public function getAlias(): string
     {
         // Default would underscore the camelcase unintuitively
         return 'datatables';

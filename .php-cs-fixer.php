@@ -12,10 +12,11 @@ $finder = PhpCsFixer\Finder::create()
     ->files()
     ->name('*.php')
     ->in(__DIR__.'/src')
-    ->in(__DIR__.'/tests')
+    ->in(__DIR__.'/tests')->exclude('Fixtures/var')
 ;
 
-return PhpCsFixer\Config::create()
+$config = new PhpCsFixer\Config();
+return $config
     ->setRiskyAllowed(true)
     ->setRules([
         '@Symfony' => true,
@@ -23,12 +24,10 @@ return PhpCsFixer\Config::create()
         'declare_strict_types' => true,
         'strict_param' => true,
         'strict_comparison' => true,
-        'array_syntax' => ['syntax' => 'short'],
         'concat_space' => ['spacing' => 'one'],
         'header_comment' => ['header' => $header, 'location' => 'after_open'],
 
         'mb_str_functions' => true,
-        //'ordered_class_elements' => true,
         'ordered_imports' => true,
         'phpdoc_align' => false,
         'phpdoc_separation' => false,

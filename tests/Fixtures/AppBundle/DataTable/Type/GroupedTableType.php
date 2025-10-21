@@ -27,10 +27,7 @@ use Tests\Fixtures\AppBundle\Entity\Company;
  */
 class GroupedTableType implements DataTableTypeInterface
 {
-    /**
-     * {@inheritdoc}
-     */
-    public function configure(DataTable $dataTable, array $options)
+    public function configure(DataTable $dataTable, array $options): void
     {
         $dataTable
             ->add('name', TextColumn::class, ['field' => 'c.name'])

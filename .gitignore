@@ -1,5 +1,8 @@
 /.*.cache
+/.idea
+/build
 /composer.lock
 /tmp
 /vendor
 /tests/Fixtures/var/
+*~

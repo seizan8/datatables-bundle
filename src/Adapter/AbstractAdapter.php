@@ -24,50 +24,52 @@ use Symfony\Component\PropertyAccess\PropertyAccessor;
  */
 abstract class AbstractAdapter implements AdapterInterface
 {
-    /** @var PropertyAccessor */
-    protected $accessor;
+    protected readonly PropertyAccessor $accessor;
 
-    /**
-     * AbstractAdapter constructor.
-     */
     public function __construct()
     {
         $this->accessor = PropertyAccess::createPropertyAccessor();
     }
 
-    /**
-     * {@inheritdoc}
-     */
-    final public function getData(DataTableState $state): ResultSetInterface
+    final public function getData(DataTableState $state, bool $raw = false): ResultSetInterface
     {
         $query = new AdapterQuery($state);
 
         $this->prepareQuery($query);
         $propertyMap = $this->getPropertyMap($query);
 
-        $rows = [];
         $transformer = $state->getDataTable()->getTransformer();
         $identifier = $query->getIdentifierPropertyPath();
-        foreach ($this->getResults($query) as $result) {
-            $row = [];
-            if (!empty($identifier)) {
-                $row['DT_RowId'] = $this->accessor->getValue($result, $identifier);
-            }
 
-            /** @var AbstractColumn $column */
-            foreach ($propertyMap as list($column, $mapping)) {
-                $value = ($mapping && $this->accessor->isReadable($result, $mapping)) ? $this->accessor->getValue($result, $mapping) : null;
-                $row[$column->getName()] = $column->transform($value, $result);
+        $data = (function () use ($query, $identifier, $transformer, $propertyMap, $raw) {
+            foreach ($this->getResults($query) as $result) {
+                $row = [];
+                if (!empty($identifier)) {
+                    $row['DT_RowId'] = $this->accessor->getValue($result, $identifier);
+                }
+
+                /** @var AbstractColumn $column */
+                foreach ($propertyMap as list($column, $mapping)) {
+                    $value = ($mapping && $this->accessor->isReadable($result, $mapping)) ? $this->accessor->getValue($result, $mapping) : null;
+                    $row[$column->getName()] = $column->transform($value, $result, raw: $raw);
+                }
+                if (null !== $transformer) {
+                    $row = call_user_func($transformer, $row, $result);
+                }
+                yield $row;
             }
-            if (null !== $transformer) {
-                $row = call_user_func($transformer, $row, $result);
-            }
-            $rows[] = $row;
+        })();
+
+        if (null === $query->getTotalRows() || null === $query->getFilteredRows()) {
+            throw new \LogicException('Adapter did not set row counts');
         }
 
-        return new ArrayResultSet($rows, $query->getTotalRows(), $query->getFilteredRows());
+        return new ResultSet($data, $query->getTotalRows(), $query->getFilteredRows());
     }
 
+    /**
+     * @return array{AbstractColumn, ?string}[]
+     */
     protected function getPropertyMap(AdapterQuery $query): array
     {
         $propertyMap = [];
@@ -78,12 +80,12 @@ abstract class AbstractAdapter implements AdapterInterface
         return $propertyMap;
     }
 
-    abstract protected function prepareQuery(AdapterQuery $query);
+    abstract protected function prepareQuery(AdapterQuery $query): void;
+
+    abstract protected function mapPropertyPath(AdapterQuery $query, AbstractColumn $column): ?string;
 
     /**
-     * @return string|null
+     * @return \Traversable<mixed[]>
      */
-    abstract protected function mapPropertyPath(AdapterQuery $query, AbstractColumn $column);
-
     abstract protected function getResults(AdapterQuery $query): \Traversable;
 }

@@ -12,6 +12,7 @@ declare(strict_types=1);
 
 namespace Tests\Functional;
 
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\Debug\Exception\FlattenException;
@@ -34,7 +35,7 @@ class FunctionalTest extends WebTestCase
         $this->client = self::createClient();
     }
 
-    public function testFrontend()
+    public function testFrontend(): void
     {
         $this->client->enableProfiler();
         $crawler = $this->client->request('GET', '/');
@@ -47,7 +48,7 @@ class FunctionalTest extends WebTestCase
         $this->assertEmpty($json->data);
     }
 
-    public function testPlainDataTable()
+    public function testPlainDataTable(): void
     {
         $json = $this->callDataTableUrl('/plain?_dt=persons&_init=true&draw=1&start=25&length=50&order[0][column]=0&order[0][dir]=desc');
 
@@ -67,12 +68,11 @@ class FunctionalTest extends WebTestCase
         $this->assertSame('<a href="http://localhost/employee/95">FirstName94 LastName94</a>', $sample->link);
 
         // Change when we drop old PHP versions and thus old PHPunit versions
-        $this->assertRegExp('#href="/employee/[0-9]+"#', $sample->buttons);
-        //$this->assertMatchesRegularExpression('#href="/employee/[0-9]+"#', $sample->buttons);
+        $this->assertMatchesRegularExpression('#href="/employee/\d+"#', $sample->buttons);
         $this->assertSame('04-07-2016', $json->data[6]->employedSince);
     }
 
-    public function testTypeDataTable()
+    public function testTypeDataTable(): void
     {
         $json = $this->callDataTableUrl('/type?_dt=persons');
 
@@ -81,13 +81,15 @@ class FunctionalTest extends WebTestCase
         $this->assertSame('George W.', $json->data[0]->firstName);
         $this->assertSame('BUSH', $json->data[0]->lastName);
         $this->assertSame('01-01-2017', $json->data[0]->lastActivity);
+        $this->assertSame('bush@example.org', $json->data[0]->email);
+        $this->assertObjectNotHasProperty('dummy', $json->data[0]);
 
         $json = $this->callDataTableUrl('/type?_dt=persons&draw=1&search[value]=Bush');
 
         $this->assertSame(2, $json->recordsFiltered);
     }
 
-    public function testServiceDataTable()
+    public function testServiceDataTable(): void
     {
         $json = $this->callDataTableUrl('/service?_dt=persons&draw=2');
 
@@ -100,9 +102,20 @@ class FunctionalTest extends WebTestCase
         $this->assertCount(2, $json->data);
         $this->assertStringStartsWith('Company ', $json->data[0]->company);
         $this->assertSame('LastName24 (Company 4)', $json->data[0]->fullName);
+
+        // A column search should be based on substring matching by default (same as global
+        // search). Not on exact matching.
+        $json = $this->callDataTableUrl('/service?_dt=persons&draw=2&order[0][column]=2&order[0][dir]=desc&columns[1][search][value]=name24');
+        $this->assertCount(1, $json->data);
+        $this->assertSame('LastName24 (Company 4)', $json->data[0]->fullName);
+
+        // Search for `LastName1` in the first name column should return no results. This
+        // tests that the column search only applies to the specified column.
+        $json = $this->callDataTableUrl('/service?_dt=persons&draw=2&order[0][column]=2&order[0][dir]=desc&columns[1][search][value]=LastName1');
+        $this->assertCount(0, $json->data);
     }
 
-    public function testCustomDataTable()
+    public function testCustomDataTable(): void
     {
         $json = $this->callDataTableUrl('/custom?_dt=dt&draw=2');
 
@@ -110,7 +123,7 @@ class FunctionalTest extends WebTestCase
         $this->assertStringStartsWith('Company ', $json->data[0]->company);
     }
 
-    public function testGroupedDataTable()
+    public function testGroupedDataTable(): void
     {
         $this->markTestSkipped('Group by functionality is currently not working correctly');
 
@@ -119,29 +132,30 @@ class FunctionalTest extends WebTestCase
         $this->assertStringStartsWith('Company ', $json->data[0]->company);
     }
 
-    public function testGrouped2DataTable()
+    public function testGrouped2DataTable(): void
     {
         $json = $this->callDataTableUrl('/grouped2?_dt=companies2&draw=2');
 
         $this->assertStringStartsWith('Company ', $json->data[0]->company);
     }
 
-    /**
-     * @dataProvider translationProvider
-     */
-    public function testTranslation(string $locale, string $languageProcessing, string $languageInfoFiltered)
+    #[DataProvider('translationProvider')]
+    public function testTranslation(string $locale, string $languageProcessing, string $languageInfoFiltered): void
     {
         $this->client->request('GET', sprintf('/%s/translation', $locale));
         $this->assertSuccessful($response = $this->client->getResponse());
 
-        $content = $response->getContent();
+        $content = $response->getContent() ?: 'Empty content';
         $this->assertStringContainsString('"name":"noCDN"', $content);
         $this->assertStringNotContainsString('"options":{"language":{"url"', $content);
         $this->assertStringContainsString(sprintf('"processing":"%s"', $languageProcessing), $content);
         $this->assertStringContainsString(sprintf('"infoFiltered":"%s"', $languageInfoFiltered), $content);
     }
 
-    public function translationProvider(): array
+    /**
+     * @return string[][]
+     */
+    public static function translationProvider(): array
     {
         return [
             ['en', 'Processing...', '(filtered from _MAX_ total entries)'],
@@ -150,10 +164,8 @@ class FunctionalTest extends WebTestCase
         ];
     }
 
-    /**
-     * @dataProvider languageInCDNProvider
-     */
-    public function testLanguageInCDN(string $locale)
+    #[DataProvider('languageInCDNProvider')]
+    public function testLanguageInCDN(string $locale): void
     {
         $this->client->request('GET', sprintf('/%s/translation?cdn', $locale));
         $this->assertSuccessful($response = $this->client->getResponse());
@@ -163,7 +175,7 @@ class FunctionalTest extends WebTestCase
         $this->assertStringContainsString('"options":{"language":{"url"', $content);
     }
 
-    public function languageInCDNProvider(): array
+    public static function languageInCDNProvider(): array
     {
         return [
             ['en'],
@@ -172,10 +184,8 @@ class FunctionalTest extends WebTestCase
         ];
     }
 
-    /**
-     * @dataProvider languageNotInCDNProvider
-     */
-    public function testLanguageNotInCDN(string $locale)
+    #[DataProvider('languageNotInCDNProvider')]
+    public function testLanguageNotInCDN(string $locale): void
     {
         $this->client->request('GET', sprintf('/%s/translation?cdn', $locale));
         $this->assertSuccessful($response = $this->client->getResponse());
@@ -185,7 +195,7 @@ class FunctionalTest extends WebTestCase
         $this->assertStringNotContainsString('"options":{"language":{"url"', $content);
     }
 
-    public function languageNotInCDNProvider(): array
+    public static function languageNotInCDNProvider(): array
     {
         return [
             ['ua'],
@@ -202,7 +212,7 @@ class FunctionalTest extends WebTestCase
         return json_decode($response->getContent());
     }
 
-    private function assertSuccessful(Response $response)
+    private function assertSuccessful(Response $response): void
     {
         if (!$response->isSuccessful()) {
             if ($profile = $this->client->getProfile()) {
@@ -229,7 +239,7 @@ class FunctionalTest extends WebTestCase
         }
     }
 
-    protected static function getKernelClass()
+    protected static function getKernelClass(): string
     {
         return AppKernel::class;
     }
